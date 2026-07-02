@@ -1,0 +1,247 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-slide-in: slideIn 0.5s ease-out forwards;
+  --animate-fade-in: fadeIn 0.3s ease-out forwards;
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: hsl(222 47% 6%);
+  --foreground: hsl(210 40% 98%);
+  --card: hsl(222 47% 8%);
+  --card-foreground: hsl(210 40% 98%);
+  --popover: hsl(222 47% 8%);
+  --popover-foreground: hsl(210 40% 98%);
+  --primary: hsl(160 84% 39%);
+  --primary-foreground: hsl(210 40% 98%);
+  --secondary: hsl(217 33% 17%);
+  --secondary-foreground: hsl(210 40% 98%);
+  --muted: hsl(217 33% 17%);
+  --muted-foreground: hsl(215 20% 65%);
+  --accent: hsl(160 84% 39%);
+  --accent-foreground: hsl(210 40% 98%);
+  --destructive: hsl(0 84% 60%);
+  --destructive-foreground: hsl(210 40% 98%);
+  --border: hsl(217 33% 17%);
+  --input: hsl(217 33% 17%);
+  --ring: hsl(160 84% 39%);
+  --chart-1: hsl(160 84% 39%);
+  --chart-2: hsl(45 93% 47%);
+  --chart-3: hsl(217 91% 60%);
+  --chart-4: hsl(0 84% 60%);
+  --chart-5: hsl(280 65% 60%);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+  }
+}
+
+@utility glass-panel {
+  background-color: rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 0.75rem;
+}
+
+@utility glass-panel-strong {
+  background-color: rgb(0 0 0 / 0.4);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 0.75rem;
+}
+
+@utility text-glow {
+  text-shadow: 0 0 20px currentColor;
+}
+
+@utility glow-green {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+@utility glow-gold {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+@utility gradient-text {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to right, #34d399, #22d3ee);
+}
+
+@utility gradient-gold {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to right, #fbbf24, #fde047);
+}
+
+@utility game-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  color: #fff;
+  transition: all 0.2s;
+  background-image: linear-gradient(to right, #059669, #10b981);
+  box-shadow: 0 10px 15px -3px rgb(6 78 59 / 0.3);
+}
+.game-btn:hover {
+  background-image: linear-gradient(to right, #10b981, #34d399);
+}
+.game-btn:active {
+  transform: scale(0.95);
+}
+.game-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@utility game-btn-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  color: #fff;
+  transition: all 0.2s;
+  background-image: linear-gradient(to right, #d97706, #f59e0b);
+  box-shadow: 0 10px 15px -3px rgb(120 53 15 / 0.3);
+}
+.game-btn-gold:hover {
+  background-image: linear-gradient(to right, #f59e0b, #fbbf24);
+}
+.game-btn-gold:active {
+  transform: scale(0.95);
+}
+
+@utility game-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: 1px solid rgb(16 185 129 / 0.5);
+  color: #34d399;
+}
+.game-btn-outline:hover {
+  background-color: rgb(16 185 129 / 0.1);
+  border-color: #34d399;
+}
+.game-btn-outline:active {
+  transform: scale(0.95);
+}
+
+@utility card-hover {
+  transition: all 0.3s;
+  cursor: pointer;
+}
+.card-hover:hover {
+  transform: scale(1.02);
+  box-shadow: 0 20px 25px -5px rgb(6 78 59 / 0.2);
+}
+
+@utility price-up {
+  color: #34d399;
+}
+
+@utility price-down {
+  color: #f87171;
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
