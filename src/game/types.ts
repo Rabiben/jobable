@@ -126,6 +126,72 @@ export interface BehavioralInsight {
 }
 
 export interface GameState {
+  playerId: string;
+  playerName: string;
+  cash: number;
+  debt: number;
+ creditScore: number;
+  netWorth: number;
+  esgScore: number;
+  riskLevel: number;
+  level: number;
+  xp: number;
+  phase: GamePhase;
+  day: number;
+  month: number;
+  year: number;
+  salary: number;
+  monthlyExpenses: number;
+  hasLoan: boolean;
+  loanApproved: boolean;
+  totalProfit: number;
+  totalLoss: number;
+  tradesCount: number;
+  consecutiveLosses: number;
+  behavioralFlags: string[];
+  completedMissions: string[];
+  unlockedAssets: string[];
+  activeCompanies: number;
+  bankruptcyCount: number;
+  stocks: Stock[];
+  portfolio: PlayerStock[];
+  loans: Loan[];
+  assets: Asset[];
+  companies: PlayerCompany[];
+  transactions: Transaction[];
+  marketEvents: MarketEvent[];
+  behavioralInsights: BehavioralInsight[];
+  lastPlayedAt: number;
+  isPaused: boolean;
+  gameSpeed: number;
+  daysPlayed: number;
+}
+
+export interface LoanOption {
+  type: LoanType;
+  name: string;
+  description: string;
+  interestRate: number;
+  months: number;
+  penaltyRate: number;
+  maxAmount: number;
+  minCreditScore: number;
+}
+
+export interface AssetTemplate {
+  type: AssetType;
+  name: string;
+  cost: number;
+  monthlyIncome: number;
+  monthlyExpense: number;
+  prestigeLevel: number;
+  riskImpact: number;
+  esgImpact: number;
+  requiredLevel: number;
+  description: string;
+}
+export interface GameState {
+  playerId: string;
   playerName: string;
   cash: number;
   debt: number;
@@ -164,31 +230,6 @@ export interface GameState {
   isPaused: boolean;
   gameSpeed: number;
 }
-
-export interface LoanOption {
-  type: LoanType;
-  name: string;
-  description: string;
-  interestRate: number;
-  months: number;
-  penaltyRate: number;
-  maxAmount: number;
-  minCreditScore: number;
-}
-
-export interface AssetTemplate {
-  type: AssetType;
-  name: string;
-  cost: number;
-  monthlyIncome: number;
-  monthlyExpense: number;
-  prestigeLevel: number;
-  riskImpact: number;
-  esgImpact: number;
-  requiredLevel: number;
-  description: string;
-}
-
 export type GameAction =
   | { type: "INIT_GAME"; payload: { playerName: string } }
   | { type: "LOAD_GAME"; payload: GameState }

@@ -11,17 +11,7 @@ import {
 } from "./constants";
 
 // ── Utility Functions ─────────────────────────────────────────
-function generateId(): string {
-  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-}
 
-function clamp(val: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, val));
-}
-
-function round2(val: number): number {
-  return Math.round(val * 100) / 100;
-}
 
 // ── Stock Market Simulation (Geometric Brownian Motion) ───────
 function simulateStockPrice(stock: Stock, marketEvent: MarketEvent | null): number {
@@ -217,10 +207,21 @@ function getLevelFromXp(xp: number): number {
   }
   return 1;
 }
+function generateId(): string {
+  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+}
 
+function clamp(val: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, val));
+}
+
+function round2(val: number): number {
+  return Math.round(val * 100) / 100;
+}
 // ── Initial State Factory ─────────────────────────────────────
 export function createInitialState(playerName: string): GameState {
   return {
+    playerId: generateId(), // AJOUT IMPORTANT
     playerName,
     cash: STARTING_CASH,
     debt: 0,
@@ -258,6 +259,7 @@ export function createInitialState(playerName: string): GameState {
     lastPlayedAt: Date.now(),
     isPaused: true,
     gameSpeed: 1,
+    daysPlayed: 0, // AJOUT IMPORTANT
   };
 }
 
@@ -265,16 +267,22 @@ export function createInitialState(playerName: string): GameState {
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "INIT_GAME": {
-      return createInitialState(action.payload.playerName);
+  return createInitialState(action.payload.playerName);
     }
 
-    case "LOAD_GAME": {
-      return { ...action.payload, isPaused: true };
-    }
+case "LOAD_GAME": {
+  return {
+    ...action.payload,
+    playerId: action.payload.playerId || generateId(),
+    daysPlayed: action.payload.daysPlayed ?? 0,
+    isPaused: true,
+  };
+}
 
     case "ADVANCE_DAY": {
       const newState = { ...state };
       newState.day += 1;
+       newState.daysPlayed += 1;
 
       // Simulate stock prices
       const activeEvent = state.marketEvents.find((e) => e.isActive) || null;
@@ -781,18 +789,25 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, phase: action.payload };
     }
 
-    case "GO_BANKRUPT": {
-      return {
-        ...state,
-        cash: STARTING_CASH,
-        debt: 0,
-        loans: [],
-        portfolio: [],
-        bankruptcyCount: state.bankruptcyCount + 1,
-        creditScore: Math.max(200, state.creditScore - 100),
-        consecutiveLosses: state.consecutiveLosses + 1,
-      };
-    }
+case "GO_BANKRUPT": {
+  const newState = {
+    ...state,
+    cash: STARTING_CASH,
+    debt: 0,
+    loans: [],
+    portfolio: [],
+    bankruptcyCount: state.bankruptcyCount + 1,
+    creditScore: Math.max(200, state.creditScore - 100),
+    consecutiveLosses: state.consecutiveLosses + 1,
+  };
+
+  return {
+    ...newState,
+    netWorth: calculateNetWorth(newState),
+    esgScore: calculateESG(newState),
+    riskLevel: calculateRisk(newState),
+  };
+}
 
     case "RESET_DAY": {
       return { ...state, day: 1 };

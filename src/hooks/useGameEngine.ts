@@ -2,6 +2,7 @@ import { useReducer, useCallback, useEffect, useRef } from "react";
 import type { GameState, Loan, Asset, PlayerCompany } from "@/game/types";
 import { gameReducer, createInitialState } from "@/game/engine";
 import { LOAN_OPTIONS, ASSET_TEMPLATES, MISSIONS } from "@/game/constants";
+import { submitGameResult } from "@/lib/resultsApi";
 
 const STORAGE_KEY = "atlas_game_state";
 
@@ -37,9 +38,9 @@ export function useGameEngine() {
   // Save state on changes
   useEffect(() => {
     if (state.playerName !== "Player" || state.day > 1) {
-      saveState(state);
+      syncResultToServer();
     }
-  }, [state]);
+  }, []);
 
   // Game loop
   useEffect(() => {
@@ -218,6 +219,76 @@ export function useGameEngine() {
   const getLoanOptions = useCallback(() => {
     return LOAN_OPTIONS.filter((o) => state.creditScore >= o.minCreditScore);
   }, [state.creditScore]);
+
+
+const syncResultToServer = useCallback(async () => {
+  // Évite d'envoyer l'état par défaut avant le début réel du jeu
+  if (state.playerName === "Player" && state.day === 1 && state.month === 1 && state.year === 1) {
+    return;
+  }
+
+  try {
+    await submitGameResult({
+      data: {
+        playerId: state.playerId,
+        playerName: state.playerName,
+        level: state.level,
+        xp: state.xp,
+        cash: state.cash,
+        debt: state.debt,
+        netWorth: state.netWorth,
+        portfolioValue: state.portfolio.reduce((sum, h) => {
+          const stock = state.stocks.find((s) => s.id === h.stockId);
+          return sum + (stock ? stock.price * h.shares : 0);
+        }, 0),
+        creditScore: state.creditScore,
+        esgScore: state.esgScore,
+        riskLevel: state.riskLevel,
+        totalProfit: state.totalProfit,
+        totalLoss: state.totalLoss,
+        tradesCount: state.tradesCount,
+        bankruptcyCount: state.bankruptcyCount,
+        day: state.day,
+        month: state.month,
+        year: state.year,
+        daysPlayed: ((state.year - 1) * 360) + ((state.month - 1) * 30) + state.day,
+        companiesCreated: state.companies.length,
+        assetsOwned: state.assets.length,
+        completedMissions: state.completedMissions.length,
+      },
+    });
+  } catch (error) {
+    console.error("Erreur envoi résultat Supabase:", error);
+  }
+}, [state]);
+
+
+useEffect(() => {
+  if (state.playerName !== "Player" || state.day > 1) {
+    syncResultToServer();
+  }
+}, [
+  state.day,
+  state.month,
+  state.year,
+  state.cash,
+  state.debt,
+  state.netWorth,
+  state.level,
+  state.xp,
+  state.creditScore,
+  state.esgScore,
+  state.riskLevel,
+  state.tradesCount,
+  state.bankruptcyCount,
+  state.companies.length,
+  state.assets.length,
+  state.completedMissions.length,
+  syncResultToServer,
+]);
+
+
+
 
   return {
     state,
