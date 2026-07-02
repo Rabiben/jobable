@@ -130,7 +130,7 @@ export interface GameState {
   playerName: string;
   cash: number;
   debt: number;
- creditScore: number;
+  creditScore: number;
   netWorth: number;
   esgScore: number;
   riskLevel: number;
@@ -153,6 +153,7 @@ export interface GameState {
   unlockedAssets: string[];
   activeCompanies: number;
   bankruptcyCount: number;
+  daysPlayed: number;
   stocks: Stock[];
   portfolio: PlayerStock[];
   loans: Loan[];
@@ -164,7 +165,6 @@ export interface GameState {
   lastPlayedAt: number;
   isPaused: boolean;
   gameSpeed: number;
-  daysPlayed: number;
 }
 
 export interface LoanOption {

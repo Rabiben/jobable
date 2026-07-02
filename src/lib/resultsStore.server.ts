@@ -109,11 +109,14 @@ function fromRow(row: PlayerResultRow): PlayerResult {
 }
 
 export async function upsertResult(result: PlayerResult): Promise<PlayerResult> {
+  console.log("upsertResult payload:", result);
+
   const { error } = await supabaseAdmin
     .from("player_results")
     .upsert(toRow(result), { onConflict: "player_id" });
 
   if (error) {
+    console.error("Supabase upsert error:", error);
     throw new Error(`Supabase upsertResult failed: ${error.message}`);
   }
 

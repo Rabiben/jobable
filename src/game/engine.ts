@@ -221,7 +221,7 @@ function round2(val: number): number {
 // ── Initial State Factory ─────────────────────────────────────
 export function createInitialState(playerName: string): GameState {
   return {
-    playerId: generateId(), // AJOUT IMPORTANT
+    playerId: generateId(),
     playerName,
     cash: STARTING_CASH,
     debt: 0,
@@ -248,6 +248,7 @@ export function createInitialState(playerName: string): GameState {
     unlockedAssets: [],
     activeCompanies: 0,
     bankruptcyCount: 0,
+    daysPlayed: 0,
     stocks: INITIAL_STOCKS.map((s) => ({ ...s })),
     portfolio: [],
     loans: [],
@@ -259,10 +260,8 @@ export function createInitialState(playerName: string): GameState {
     lastPlayedAt: Date.now(),
     isPaused: true,
     gameSpeed: 1,
-    daysPlayed: 0, // AJOUT IMPORTANT
   };
 }
-
 // ── Game Reducer ──────────────────────────────────────────────
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {

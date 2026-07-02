@@ -22,3 +22,5 @@ export const supabaseAdmin = createClient(
     },
   },
 );
+console.log("SUPABASE_URL set:", !!supabaseUrl);
+console.log("KEY length:", supabaseServiceRoleKey?.length);

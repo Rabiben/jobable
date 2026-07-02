@@ -48,8 +48,11 @@ const resultSchema = z.object({
 export const submitGameResult = createServerFn({ method: "POST" })
   .validator(resultSchema)
   .handler(async ({ data }) => {
+    console.log("submitGameResult reçu:", data);
+
     const result: PlayerResult = { ...data, submittedAt: Date.now() };
     await upsertResult(result);
+
     return { success: true as const };
   });
 
