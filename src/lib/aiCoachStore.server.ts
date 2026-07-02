@@ -1,10 +1,13 @@
 // Server-only module. Persists AI recommendations (chat replies AND
 // proactive nudges) and the decisions players make afterwards, so an
-// admin/researcher can correlate advice given with actions taken. Same
-// JSON-on-disk pattern as resultsStore.server.ts — swap this implementation
-// for a real DB if you move off a Node filesystem host.
-import { promises as fs } from "node:fs";
-import path from "node:path";
+// admin/researcher can correlate advice given with actions taken.
+//
+// IMPORTANT: this used to write to local JSON files on disk. That does NOT
+// work on Vercel (and most serverless hosts): the filesystem there is
+// read-only in production and/or wiped between invocations, so nothing ever
+// persisted. This version stores everything in Supabase, same as
+// resultsStore.server.ts, so data survives across requests/deploys.
+import { supabaseAdmin } from "./supabaseAdmin.server";
 
 export type NudgeTrigger = "post_trade" | "concentration" | "news_impact" | "loss_streak";
 
@@ -32,96 +35,147 @@ export interface PlayerDecision {
   price: number;
 }
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const RECS_FILE = path.join(DATA_DIR, "ai-recommendations.json");
-const DECISIONS_FILE = path.join(DATA_DIR, "ai-decisions.json");
+type AiRecommendationRow = {
+  id: string;
+  player_id: string;
+  player_name: string;
+  timestamp: number;
+  user_message: string;
+  ai_reply: string;
+  related_stock_symbols: string[];
+  kind: "chat" | "nudge" | null;
+  trigger_type: NudgeTrigger | null;
+};
 
-let writeQueue: Promise<unknown> = Promise.resolve();
-function enqueue<T>(task: () => Promise<T>): Promise<T> {
-  const result = writeQueue.then(task, task);
-  writeQueue = result.then(
-    () => undefined,
-    () => undefined,
-  );
-  return result;
+type PlayerDecisionRow = {
+  id: string;
+  player_id: string;
+  timestamp: number;
+  action: "buy" | "sell";
+  stock_symbol: string;
+  shares: number;
+  price: number;
+};
+
+function recToRow(rec: AiRecommendation): AiRecommendationRow {
+  return {
+    id: rec.id,
+    player_id: rec.playerId,
+    player_name: rec.playerName,
+    timestamp: rec.timestamp,
+    user_message: rec.userMessage,
+    ai_reply: rec.aiReply,
+    related_stock_symbols: rec.relatedStockSymbols,
+    kind: rec.kind ?? "chat",
+    trigger_type: rec.triggerType ?? null,
+  };
 }
 
-async function ensureFile(file: string): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  try {
-    await fs.access(file);
-  } catch {
-    await fs.writeFile(file, "[]", "utf-8");
-  }
+function rowToRec(row: AiRecommendationRow): AiRecommendation {
+  return {
+    id: row.id,
+    playerId: row.player_id,
+    playerName: row.player_name,
+    timestamp: row.timestamp,
+    userMessage: row.user_message,
+    aiReply: row.ai_reply,
+    relatedStockSymbols: row.related_stock_symbols ?? [],
+    kind: row.kind ?? "chat",
+    triggerType: row.trigger_type ?? undefined,
+  };
 }
 
-async function readArray<T>(file: string): Promise<T[]> {
-  await ensureFile(file);
-  try {
-    const raw = await fs.readFile(file, "utf-8");
-    return JSON.parse(raw) as T[];
-  } catch {
-    return [];
-  }
+function decisionToRow(decision: PlayerDecision): PlayerDecisionRow {
+  return {
+    id: decision.id,
+    player_id: decision.playerId,
+    timestamp: decision.timestamp,
+    action: decision.action,
+    stock_symbol: decision.stockSymbol,
+    shares: decision.shares,
+    price: decision.price,
+  };
 }
 
-async function writeArray<T>(file: string, data: T[]): Promise<void> {
-  await fs.writeFile(file, JSON.stringify(data, null, 2), "utf-8");
+function rowToDecision(row: PlayerDecisionRow): PlayerDecision {
+  return {
+    id: row.id,
+    playerId: row.player_id,
+    timestamp: row.timestamp,
+    action: row.action,
+    stockSymbol: row.stock_symbol,
+    shares: row.shares,
+    price: row.price,
+  };
 }
 
 export async function addRecommendation(rec: AiRecommendation): Promise<void> {
-  await enqueue(async () => {
-    const all = await readArray<AiRecommendation>(RECS_FILE);
-    all.push(rec);
-    await writeArray(RECS_FILE, all);
-  });
+  const { error } = await supabaseAdmin.from("ai_recommendations").insert(recToRow(rec));
+  if (error) {
+    throw new Error(`Supabase addRecommendation failed: ${error.message}`);
+  }
 }
 
 export async function addDecision(decision: PlayerDecision): Promise<void> {
-  await enqueue(async () => {
-    const all = await readArray<PlayerDecision>(DECISIONS_FILE);
-    all.push(decision);
-    await writeArray(DECISIONS_FILE, all);
-  });
+  const { error } = await supabaseAdmin.from("ai_decisions").insert(decisionToRow(decision));
+  if (error) {
+    throw new Error(`Supabase addDecision failed: ${error.message}`);
+  }
 }
 
 export async function getAllRecommendations(): Promise<AiRecommendation[]> {
-  const all = await readArray<AiRecommendation>(RECS_FILE);
-  return all.sort((a, b) => b.timestamp - a.timestamp);
+  const { data, error } = await supabaseAdmin
+    .from("ai_recommendations")
+    .select("*")
+    .order("timestamp", { ascending: false });
+
+  if (error) {
+    throw new Error(`Supabase getAllRecommendations failed: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => rowToRec(row as AiRecommendationRow));
 }
 
 export async function getAllDecisions(): Promise<PlayerDecision[]> {
-  const all = await readArray<PlayerDecision>(DECISIONS_FILE);
-  return all.sort((a, b) => b.timestamp - a.timestamp);
+  const { data, error } = await supabaseAdmin
+    .from("ai_decisions")
+    .select("*")
+    .order("timestamp", { ascending: false });
+
+  if (error) {
+    throw new Error(`Supabase getAllDecisions failed: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => rowToDecision(row as PlayerDecisionRow));
 }
 
 export async function deleteRecommendation(id: string): Promise<void> {
-  await enqueue(async () => {
-    const all = await readArray<AiRecommendation>(RECS_FILE);
-    const filtered = all.filter((r) => r.id !== id);
-    await writeArray(RECS_FILE, filtered);
-  });
+  const { error } = await supabaseAdmin.from("ai_recommendations").delete().eq("id", id);
+  if (error) {
+    throw new Error(`Supabase deleteRecommendation failed: ${error.message}`);
+  }
 }
 
 export async function deleteDecision(id: string): Promise<void> {
-  await enqueue(async () => {
-    const all = await readArray<PlayerDecision>(DECISIONS_FILE);
-    const filtered = all.filter((d) => d.id !== id);
-    await writeArray(DECISIONS_FILE, filtered);
-  });
+  const { error } = await supabaseAdmin.from("ai_decisions").delete().eq("id", id);
+  if (error) {
+    throw new Error(`Supabase deleteDecision failed: ${error.message}`);
+  }
 }
+
 export async function deleteRecommendationsByPlayer(playerId: string): Promise<void> {
-  await enqueue(async () => {
-    const all = await readArray<AiRecommendation>(RECS_FILE);
-    const filtered = all.filter((r) => r.playerId !== playerId);
-    await writeArray(RECS_FILE, filtered);
-  });
+  const { error } = await supabaseAdmin
+    .from("ai_recommendations")
+    .delete()
+    .eq("player_id", playerId);
+  if (error) {
+    throw new Error(`Supabase deleteRecommendationsByPlayer failed: ${error.message}`);
+  }
 }
 
 export async function deleteDecisionsByPlayer(playerId: string): Promise<void> {
-  await enqueue(async () => {
-    const all = await readArray<PlayerDecision>(DECISIONS_FILE);
-    const filtered = all.filter((d) => d.playerId !== playerId);
-    await writeArray(DECISIONS_FILE, filtered);
-  });
+  const { error } = await supabaseAdmin.from("ai_decisions").delete().eq("player_id", playerId);
+  if (error) {
+    throw new Error(`Supabase deleteDecisionsByPlayer failed: ${error.message}`);
+  }
 }

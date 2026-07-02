@@ -2,23 +2,18 @@ import { useReducer, useCallback, useEffect, useRef } from "react";
 import type { GameState, Loan, Asset, PlayerCompany } from "@/game/types";
 import { gameReducer, createInitialState } from "@/game/engine";
 import { LOAN_OPTIONS, ASSET_TEMPLATES, MISSIONS } from "@/game/constants";
-import { submitGameResult } from "@/lib/resultsApi";
 
 const STORAGE_KEY = "atlas_game_state";
-
-function generateLocalId() {
-  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-}
 
 function loadSavedState(): GameState | null {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+
       return {
         ...parsed,
-        playerId: parsed.playerId || generateLocalId(),
-        daysPlayed: parsed.daysPlayed ?? 0,
+        playerId: parsed.playerId || crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         isPaused: true,
       };
     }
@@ -27,6 +22,7 @@ function loadSavedState(): GameState | null {
   }
   return null;
 }
+
 function saveState(state: GameState) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -43,12 +39,13 @@ export function useGameEngine() {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Save state on changes
+  // Persist progress to localStorage on every change, so a page refresh
+  // resumes the same game (and keeps the same playerName/playerId) instead
+  // of silently starting over as "Player". `saveState` previously existed
+  // but was never called anywhere, which is why this was broken.
   useEffect(() => {
-    if (state.playerName !== "Player" || state.day > 1) {
-      syncResultToServer();
-    }
-  }, []);
+    saveState(state);
+  }, [state]);
 
   // Game loop
   useEffect(() => {
@@ -228,83 +225,15 @@ export function useGameEngine() {
     return LOAN_OPTIONS.filter((o) => state.creditScore >= o.minCreditScore);
   }, [state.creditScore]);
 
+  // NOTE: result submission to Supabase (admin dashboard) is handled in
+  // GameProvider (src/game/GameProvider.tsx / game-context.tsx), which
+  // submits on month change, every 60s, and on tab close. A second,
+  // near-duplicate submission mechanism used to live here, firing on
+  // almost every state change (including netWorth, which updates daily)
+  // — that caused a network request roughly once per second during
+  // gameplay, using a different, less stable player identifier, and was
+  // a source of duplicate/conflicting rows in the admin table. Removed.
 
-const syncResultToServer = useCallback(async () => {
-  if (
-    state.playerName === "Player" &&
-    state.day === 1 &&
-    state.month === 1 &&
-    state.year === 2026
-  ) {
-    return;
-  }
-
-  try {
-   await submitGameResult({
-  data: {
-    playerId: state.playerId,
-    playerName: state.playerName,
-    level: state.level,
-    xp: state.xp,
-    cash: state.cash,
-    debt: state.debt,
-    netWorth: state.netWorth,
-    portfolioValue: state.portfolio.reduce((sum, h) => {
-      const stock = state.stocks.find((s) => s.id === h.stockId);
-      return sum + (stock ? stock.price * h.shares : 0);
-    }, 0),
-    creditScore: state.creditScore,
-    esgScore: state.esgScore,
-    riskLevel: state.riskLevel,
-    totalProfit: state.totalProfit,
-    totalLoss: state.totalLoss,
-    tradesCount: state.tradesCount,
-    bankruptcyCount: state.bankruptcyCount,
-    day: state.day,
-    month: state.month,
-    year: state.year,
-    daysPlayed: state.daysPlayed,
-    companiesCreated: state.companies.length,
-    assetsOwned: state.assets.length,
-    completedMissions: state.completedMissions.length,
-  },
-});
-    console.log("Résultat envoyé à Supabase :", {
-      playerId: state.playerId,
-      playerName: state.playerName,
-      day: state.day,
-      month: state.month,
-      year: state.year,
-    });
-  } catch (error) {
-    console.error("Erreur envoi résultat Supabase:", error);
-  }
-}, [state]);
-
-
-useEffect(() => {
-  if (state.playerName !== "Player" || state.day > 1) {
-    syncResultToServer();
-  }
-}, [
-  state.day,
-  state.month,
-  state.year,
-  state.cash,
-  state.debt,
-  state.netWorth,
-  state.level,
-  state.xp,
-  state.creditScore,
-  state.esgScore,
-  state.riskLevel,
-  state.tradesCount,
-  state.bankruptcyCount,
-  state.companies.length,
-  state.assets.length,
-  state.completedMissions.length,
-  syncResultToServer,
-]);
 
 
 

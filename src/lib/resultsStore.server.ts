@@ -29,6 +29,9 @@ export interface PlayerResult {
 type PlayerResultRow = {
   player_id: string;
   player_name: string;
+  // Normalized (trimmed + lowercased) player name. This is the actual
+  // de-duplication key — see the comment on upsertResult() below for why.
+  player_name_key: string;
   level: number;
   xp: number;
   cash: number;
@@ -56,6 +59,7 @@ function toRow(result: PlayerResult): PlayerResultRow {
   return {
     player_id: result.playerId,
     player_name: result.playerName,
+    player_name_key: result.playerName.trim().toLowerCase(),
     level: result.level,
     xp: result.xp,
     cash: result.cash,
@@ -108,15 +112,25 @@ function fromRow(row: PlayerResultRow): PlayerResult {
   };
 }
 
+// player_id is a random UUID stored in the browser's localStorage
+// (see src/lib/playerId.ts). It resets — and a new one gets generated —
+// any time a student plays from a different browser/tab, uses private
+// browsing, or clears site data. Upserting on player_id therefore created
+// a brand new row every time that happened, even though it was the same
+// student typing the same name, which is what produced duplicate-looking
+// rows in the admin table.
+//
+// We upsert on the normalized player name instead: replaying under the
+// same name (any device) now updates the existing row rather than
+// inserting a new one. Trade-off: two different students who type the
+// exact same name will share one row — ask students to use a distinguishing
+// name (e.g. first name + last initial) if that's a concern for your class.
 export async function upsertResult(result: PlayerResult): Promise<PlayerResult> {
-  console.log("upsertResult payload:", result);
-
   const { error } = await supabaseAdmin
     .from("player_results")
-    .upsert(toRow(result), { onConflict: "player_id" });
+    .upsert(toRow(result), { onConflict: "player_name_key" });
 
   if (error) {
-    console.error("Supabase upsert error:", error);
     throw new Error(`Supabase upsertResult failed: ${error.message}`);
   }
 
