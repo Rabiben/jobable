@@ -1,14 +1,4 @@
-// Server-only module. Persists player results to a JSON file on disk so an
-// admin can review every player's progress, not just what's in their own
-// browser's localStorage.
-//
-// NOTE: this relies on Node's filesystem, which works for local dev and any
-// standard Node host. If this project is ever deployed to an edge/serverless
-// runtime without a writable filesystem (e.g. Cloudflare Workers), swap this
-// module's implementation for a KV/D1/Postgres-backed store — the rest of the
-// app only talks to the functions exported below, so nothing else changes.
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { supabaseAdmin } from "./supabaseAdmin.server";
 
 export interface PlayerResult {
   playerId: string;
@@ -36,62 +26,120 @@ export interface PlayerResult {
   submittedAt: number;
 }
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "results.json");
+type PlayerResultRow = {
+  player_id: string;
+  player_name: string;
+  level: number;
+  xp: number;
+  cash: number;
+  debt: number;
+  net_worth: number;
+  portfolio_value: number;
+  credit_score: number;
+  esg_score: number;
+  risk_level: number;
+  total_profit: number;
+  total_loss: number;
+  trades_count: number;
+  bankruptcy_count: number;
+  day: number;
+  month: number;
+  year: number;
+  days_played: number;
+  companies_created: number;
+  assets_owned: number;
+  completed_missions: number;
+  submitted_at: number;
+};
 
-// Serialize writes so concurrent submissions can't clobber each other.
-let writeQueue: Promise<unknown> = Promise.resolve();
-
-function enqueue<T>(task: () => Promise<T>): Promise<T> {
-  const result = writeQueue.then(task, task);
-  writeQueue = result.then(
-    () => undefined,
-    () => undefined,
-  );
-  return result;
+function toRow(result: PlayerResult): PlayerResultRow {
+  return {
+    player_id: result.playerId,
+    player_name: result.playerName,
+    level: result.level,
+    xp: result.xp,
+    cash: result.cash,
+    debt: result.debt,
+    net_worth: result.netWorth,
+    portfolio_value: result.portfolioValue,
+    credit_score: result.creditScore,
+    esg_score: result.esgScore,
+    risk_level: result.riskLevel,
+    total_profit: result.totalProfit,
+    total_loss: result.totalLoss,
+    trades_count: result.tradesCount,
+    bankruptcy_count: result.bankruptcyCount,
+    day: result.day,
+    month: result.month,
+    year: result.year,
+    days_played: result.daysPlayed,
+    companies_created: result.companiesCreated,
+    assets_owned: result.assetsOwned,
+    completed_missions: result.completedMissions,
+    submitted_at: result.submittedAt,
+  };
 }
 
-async function ensureFile(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  try {
-    await fs.access(DATA_FILE);
-  } catch {
-    await fs.writeFile(DATA_FILE, "{}", "utf-8");
-  }
-}
-
-async function readAll(): Promise<Record<string, PlayerResult>> {
-  await ensureFile();
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(raw) as Record<string, PlayerResult>;
-  } catch {
-    return {};
-  }
-}
-
-async function writeAll(data: Record<string, PlayerResult>): Promise<void> {
-  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
+function fromRow(row: PlayerResultRow): PlayerResult {
+  return {
+    playerId: row.player_id,
+    playerName: row.player_name,
+    level: row.level,
+    xp: row.xp,
+    cash: row.cash,
+    debt: row.debt,
+    netWorth: row.net_worth,
+    portfolioValue: row.portfolio_value,
+    creditScore: row.credit_score,
+    esgScore: row.esg_score,
+    riskLevel: row.risk_level,
+    totalProfit: row.total_profit,
+    totalLoss: row.total_loss,
+    tradesCount: row.trades_count,
+    bankruptcyCount: row.bankruptcy_count,
+    day: row.day,
+    month: row.month,
+    year: row.year,
+    daysPlayed: row.days_played,
+    companiesCreated: row.companies_created,
+    assetsOwned: row.assets_owned,
+    completedMissions: row.completed_missions,
+    submittedAt: row.submitted_at,
+  };
 }
 
 export async function upsertResult(result: PlayerResult): Promise<PlayerResult> {
-  return enqueue(async () => {
-    const all = await readAll();
-    all[result.playerId] = result;
-    await writeAll(all);
-    return result;
-  });
+  const { error } = await supabaseAdmin
+    .from("player_results")
+    .upsert(toRow(result), { onConflict: "player_id" });
+
+  if (error) {
+    throw new Error(`Supabase upsertResult failed: ${error.message}`);
+  }
+
+  return result;
 }
 
 export async function getAllResults(): Promise<PlayerResult[]> {
-  const all = await readAll();
-  return Object.values(all).sort((a, b) => b.submittedAt - a.submittedAt);
+  const { data, error } = await supabaseAdmin
+    .from("player_results")
+    .select("*")
+    .order("submitted_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Supabase getAllResults failed: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => fromRow(row as PlayerResultRow));
 }
 
 export async function deleteResultById(playerId: string): Promise<void> {
-  await enqueue(async () => {
-    const all = await readAll();
-    delete all[playerId];
-    await writeAll(all);
-  });
+  const { error } = await supabaseAdmin
+    .from("player_results")
+    .delete()
+    .eq("player_id", playerId);
+
+  if (error) {
+    throw new Error(`Supabase deleteResultById failed: ${error.message}`);
+  }
 }
