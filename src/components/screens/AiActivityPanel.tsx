@@ -25,6 +25,7 @@ interface AiRecommendation {
 interface PlayerDecision {
   id: string;
   playerId: string;
+  playerName: string;
   timestamp: number;
   action: "buy" | "sell";
   stockSymbol: string;
@@ -142,12 +143,13 @@ export function AiActivityPanel({ password }: { password: string }) {
     const groups = new Map<string, TimelineEntry[]>();
 
     for (const r of recommendations) {
-      names.set(r.playerId, r.playerName);
+      if (r.playerName) names.set(r.playerId, r.playerName);
       const list = groups.get(r.playerId) ?? [];
       list.push({ kind: "recommendation", timestamp: r.timestamp, data: r });
       groups.set(r.playerId, list);
     }
     for (const d of decisions) {
+      if (d.playerName) names.set(d.playerId, d.playerName);
       const list = groups.get(d.playerId) ?? [];
       list.push({ kind: "decision", timestamp: d.timestamp, data: d });
       groups.set(d.playerId, list);
@@ -156,7 +158,9 @@ export function AiActivityPanel({ password }: { password: string }) {
     return Array.from(groups.entries())
       .map(([playerId, entries]) => ({
         playerId,
-        playerName: names.get(playerId) ?? playerId,
+        // Legacy rows recorded before decisions stored a name can still lack
+        // one — fall back to a short readable tag instead of a raw UUID.
+        playerName: names.get(playerId) ?? `Joueur (${playerId.slice(0, 8)})`,
         entries: entries.sort((a, b) => b.timestamp - a.timestamp),
       }))
       .sort((a, b) => (b.entries[0]?.timestamp ?? 0) - (a.entries[0]?.timestamp ?? 0));
