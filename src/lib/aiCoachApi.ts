@@ -111,11 +111,19 @@ export const getAiAdvice = createServerFn({ method: "POST" })
       contents,
       config: {
         systemInstruction: `${NOURA_SYSTEM_PROMPT}\n\n${marketContext}`,
-        maxOutputTokens: 500,
+        maxOutputTokens: 600,
+        // gemini-2.5-flash reserves part of maxOutputTokens for internal
+        // "thinking" tokens by default, which can eat the whole budget and
+        // leave the visible reply cut off mid-sentence. We don't need
+        // chain-of-thought for a short coaching reply, so disable it and
+        // let the full budget go to the actual text.
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
 
-    const reply = response.text ?? "";
+    const reply =
+      response.text?.trim() ||
+      "Désolée, je n'ai pas réussi à répondre cette fois — reformule ta question ou réessaie dans un instant.";
 
     const lastUserMessage = [...data.messages].reverse().find((m) => m.role === "user");
     const combinedText = `${lastUserMessage?.content ?? ""} ${reply}`.toLowerCase();
@@ -170,11 +178,23 @@ Donne UNE seule notification courte (1 à 2 phrases maximum), dans ton style hab
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         systemInstruction: `${NOURA_SYSTEM_PROMPT}\n\n${marketContext}`,
-        maxOutputTokens: 150,
+        maxOutputTokens: 300,
+        // See comment in getAiAdvice above: without this, gemini-2.5-flash
+        // can spend the entire (small) token budget on internal reasoning
+        // and return an empty or mid-sentence-truncated visible reply,
+        // which is exactly what was showing up in the admin dashboard.
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
 
-    const reply = response.text ?? "";
+    const reply = response.text?.trim() || "";
+
+    // If Gemini returned nothing (safety block, quota, transient error),
+    // skip logging an empty notification instead of showing a blank
+    // "Notification : " line in the admin dashboard.
+    if (!reply) {
+      return { message: "" };
+    }
 
     await addRecommendation({
       id: crypto.randomUUID(),
