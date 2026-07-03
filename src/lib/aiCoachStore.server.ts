@@ -28,6 +28,7 @@ export interface AiRecommendation {
 export interface PlayerDecision {
   id: string;
   playerId: string;
+  playerName: string;
   timestamp: number;
   action: "buy" | "sell";
   stockSymbol: string;
@@ -50,6 +51,7 @@ type AiRecommendationRow = {
 type PlayerDecisionRow = {
   id: string;
   player_id: string;
+  player_name: string;
   timestamp: number;
   action: "buy" | "sell";
   stock_symbol: string;
@@ -89,6 +91,7 @@ function decisionToRow(decision: PlayerDecision): PlayerDecisionRow {
   return {
     id: decision.id,
     player_id: decision.playerId,
+    player_name: decision.playerName,
     timestamp: decision.timestamp,
     action: decision.action,
     stock_symbol: decision.stockSymbol,
@@ -101,6 +104,7 @@ function rowToDecision(row: PlayerDecisionRow): PlayerDecision {
   return {
     id: row.id,
     playerId: row.player_id,
+    playerName: row.player_name,
     timestamp: row.timestamp,
     action: row.action,
     stockSymbol: row.stock_symbol,

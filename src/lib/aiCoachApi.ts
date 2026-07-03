@@ -197,6 +197,7 @@ export const logDecision = createServerFn({ method: "POST" })
   .validator(
     z.object({
       playerId: z.string().min(1),
+      playerName: z.string().min(1),
       action: z.enum(["buy", "sell"]),
       stockSymbol: z.string().min(1),
       shares: z.number(),
@@ -207,6 +208,7 @@ export const logDecision = createServerFn({ method: "POST" })
     await addDecision({
       id: crypto.randomUUID(),
       playerId: data.playerId,
+      playerName: data.playerName,
       timestamp: Date.now(),
       action: data.action,
       stockSymbol: data.stockSymbol,

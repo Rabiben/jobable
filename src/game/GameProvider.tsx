@@ -129,6 +129,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         void logDecision({
           data: {
             playerId: getOrCreatePlayerId(),
+            playerName: state.playerName,
             action: "buy",
             stockSymbol: stock.symbol,
             shares,
@@ -137,7 +138,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         }).catch(() => {});
       }
     },
-    [engine, state.stocks],
+    [engine, state.stocks, state.playerName],
   );
 
   const sellStock = useCallback(
@@ -148,6 +149,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         void logDecision({
           data: {
             playerId: getOrCreatePlayerId(),
+            playerName: state.playerName,
             action: "sell",
             stockSymbol: stock.symbol,
             shares,
@@ -156,7 +158,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         }).catch(() => {});
       }
     },
-    [engine, state.stocks],
+    [engine, state.stocks, state.playerName],
   );
 
   const value: GameContextValue = {
